@@ -1,0 +1,55 @@
+# ==============================================================================
+# GRYPHON Phase 1 — deployment baseline
+# ==============================================================================
+# Contract v1.1.0 §6.1 / §31: PostgreSQL 16 + Redis 7.
+#   * PostgreSQL 16 is the authoritative durable state (grants, runs, audit).
+#   * Redis 7 is PROVISIONED ONLY. It is NOT an authorization source of truth
+#     and is not on the Phase 1 auth path (INV-021). Stopping it MUST NOT change
+#     any authorization decision.
+#
+# Role separation (§22.3):
+#   * `gryphon_owner`  — schema owner / migration (deploy) identity.
+#   * `gryphon_runtime`— least-privilege runtime identity (SELECT/INSERT only;
+#                        no UPDATE/DELETE/TRUNCATE on audit or grant rows).
+# The runtime login role is created by ./scripts/init_db_roles.sql at first boot;
+# the Alembic migration (run as owner) GRANTs the minimal table privileges.
+# ==============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gryphon-postgres
+    environment:
+      POSTGRES_DB: gryphon
+      POSTGRES_USER: gryphon_owner
+      POSTGRES_PASSWORD: owner_pw
+      # Password for the restricted runtime role, consumed by the init script.
+      GRYPHON_RUNTIME_PASSWORD: runtime_pw
+    ports:
+      - "5432:5432"
+    volumes:
+      - gryphon_pgdata:/var/lib/postgresql/data
+      - ./scripts/init_db_roles.sql:/docker-entrypoint-initdb.d/00_init_db_roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gryphon_owner -d gryphon"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: gryphon-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  gryphon_pgdata:
+    driver: local

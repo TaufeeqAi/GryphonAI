@@ -1,0 +1,117 @@
+
+# ==============================================================================
+# GRYPHON — Authorization Gate + Core Database
+# ==============================================================================
+# Build + tooling configuration.
+#
+# Dependency versions below were confirmed LIVE from PyPI on 2026-11-08 and are
+# pinned exactly (contract v1.1.0 §6.1 / §25: "no `latest`, floating major
+# ranges or unpinned transitive dependencies in the release lock").
+#
+# Target runtime: CPython 3.12. The most constraining `requires_python` across
+# the locked set is >=3.11 (SQLAlchemy 2.1.8, pydantic-settings 2.16.2,
+# hypothesis). 3.12 is chosen as the stable, widely-available baseline.
+# ==============================================================================
+
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gryphon"
+version = "1.1.0"
+description = "GRYPHON — Ed25519 authorization root-of-trust and core database foundation."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+authors = [{ name = "GRYPHON Project" }]
+keywords = ["authorization", "ed25519", "jws", "audit", "security", "pentest"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "License :: OSI Approved :: Apache Software License",
+]
+
+# --- Runtime dependencies (exact pins; live PyPI crawl 2026-11-08) ------------
+dependencies = [
+    "cryptography==50.0.2",      # Ed25519 primitives (BND-01/02/06)
+    "PyJWT==2.15.1",             # Compact JWS envelope, EdDSA pinned (§11.1)
+    "pydantic==2.14.3",          # Strict cross-field claim validation (§6.2)
+    "pydantic-settings==2.16.2", # Fail-closed typed configuration (SEC-004)
+    "SQLAlchemy==2.1.8",         # Async unit-of-work / repositories (BND-07)
+    "alembic==1.20.1",           # Sole schema migration owner (§22.4)
+    "asyncpg==0.32.0",           # PostgreSQL 16 async driver (§6.1)
+    "greenlet==3.5.6",           # Required by SQLAlchemy async bridge
+    "rfc8785==0.1.4",            # RFC 8785 JSON Canonicalization Scheme (§22.1)
+    "idna==3.20",                # Pinned IDNA 2008 / UTS-46 A-label profile (§11.3)
+    "structlog==26.1.0",         # Structured, redacted logs (§24.2)
+    "langgraph==1.2.20",         # Minimal compiled gate conformance graph (§30.4)
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.2.0",
+    "pytest-asyncio==1.4.1.post1",
+    "hypothesis==6.170.15",      # Property / fuzz corpus (§30.5)
+]
+
+[project.scripts]
+gryphon-keygen = "scripts.generate_keys:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["gryphon"]
+
+# ------------------------------------------------------------------------------
+# pytest
+# ------------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "9.0"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "unit: pure in-process logic, no external services",
+    "contract: cross-boundary behavioral contract tests",
+    "integration: requires a live PostgreSQL 16 instance",
+    "security: tamper / privilege / redaction tests",
+    "property: Hypothesis property and fuzz tests",
+    "concurrency: concurrent admission / recovery tests",
+    "graph: compiled LangGraph gate conformance",
+]
+filterwarnings = [
+    "error",
+    # Upstream (langsmith, pulled transitively by langgraph) uses a function
+    # that Python 3.14 newly deprecates. Target runtime is 3.12; ignore here so
+    # the strict suite still runs on 3.14 CI without masking our own warnings.
+    "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning",
+    "default::DeprecationWarning:langsmith",
+    "default::DeprecationWarning:langchain_core",
+]
+
+# ------------------------------------------------------------------------------
+# ruff (lint/format) — optional dev tool, config kept here for convenience
+# ------------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "ASYNC", "RUF"]
+# S101 (assert) is fine in tests; handled per-file below.
+ignore = ["S104"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+
+# ------------------------------------------------------------------------------
+# mypy (optional strictness for CI)
+# ------------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]

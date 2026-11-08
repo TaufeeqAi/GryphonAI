@@ -17,6 +17,7 @@ env/
 docs/
 artifacts/
 GRYPHON_Phase1_Codebase_Bundle.md
+GRYPHON_Tool_Execution_Layer_Bundle.md
 
 # Tooling caches
 .pytest_cache/

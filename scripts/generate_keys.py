@@ -35,9 +35,11 @@ def main() -> None:
     stamp = date.today().strftime("%Y-%m")
     grant_kid = f"grant-key-{stamp}"
     audit_kid = f"audit-key-{stamp}"
+    capability_kid = f"capability-key-{stamp}"
 
     grant_priv, grant_pub = _new_keypair()
     audit_priv, audit_pub = _new_keypair()
+    capability_priv, capability_pub = _new_keypair()
 
     print("# ---- GRYPHON key material (store securely; never commit) ----")
     print(f'GRYPHON_GRANT_KID={grant_kid}')
@@ -47,6 +49,11 @@ def main() -> None:
     print(f'GRYPHON_AUDIT_KID={audit_kid}')
     print(f"GRYPHON_AUDIT_SIGNING_KEY_HEX={audit_priv}")
     print(f'GRYPHON_AUDIT_TRUSTED_PUBLIC_KEYS={{"{audit_kid}": "{audit_pub}"}}')
+    print()
+    # Capability signing key — MUST be distinct from the grant and audit keys.
+    print(f'GRYPHON_CAPABILITY_KID={capability_kid}')
+    print(f"GRYPHON_CAPABILITY_SIGNING_KEY_HEX={capability_priv}")
+    print(f'GRYPHON_CAPABILITY_TRUSTED_PUBLIC_KEYS={{"{capability_kid}": "{capability_pub}"}}')
 
 
 if __name__ == "__main__":

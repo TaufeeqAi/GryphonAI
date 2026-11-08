@@ -21,3 +21,7 @@ rfc8785==0.1.4
 idna==3.20
 structlog==26.1.0
 langgraph==1.2.20
+
+# MCP tool-server transport adapter (the enforcement core does not import it).
+# Confirmed live from PyPI on 2026-11-08.
+fastmcp==4.1.6

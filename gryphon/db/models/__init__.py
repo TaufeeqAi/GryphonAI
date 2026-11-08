@@ -9,12 +9,19 @@ from __future__ import annotations
 
 from gryphon.db.models.audit_log import AuthorizationAuditLog
 from gryphon.db.models.authorization import AuthorizationGrant
+from gryphon.db.models.capability_consumption import CapabilityConsumption
 from gryphon.db.models.finding import Finding
 from gryphon.db.models.scan_run import ScanRun
+from gryphon.db.models.tool_execution import ToolExecution
+from gryphon.db.models.tool_invocation_audit import ToolInvocationAudit
 
 __all__ = [
     "AuthorizationGrant",
     "ScanRun",
     "Finding",
     "AuthorizationAuditLog",
+    # Tool execution layer (sibling tables; authorization schema untouched).
+    "ToolExecution",
+    "CapabilityConsumption",
+    "ToolInvocationAudit",
 ]

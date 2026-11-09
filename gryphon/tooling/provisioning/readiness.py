@@ -22,7 +22,9 @@ from gryphon.tooling.tools.descriptors import get_descriptor
 
 logger = get_logger(__name__)
 
-EXPECTED_ALEMBIC_REVISION = "0002"
+#: The migration that creates this layer's schema. A LATER head is fine:
+#: subsequent layers only add tables.
+MINIMUM_ALEMBIC_REVISION = "0002"
 REQUIRED_TRIGGERS = (
     "trg_tool_invocation_audit_no_mutation",
     "trg_capability_consumption_no_mutation",
@@ -35,6 +37,23 @@ class ToolingReadinessReport:
     checks: dict[str, bool] = field(default_factory=dict)
     details: dict[str, str] = field(default_factory=dict)
 
+
+
+def _revision_at_least(applied: str | None, minimum: str) -> bool:
+    """Is the applied migration head at or beyond the one this layer needs?
+
+    An exact-equality check answers the wrong question: a later layer's
+    migration raises the head, and this layer's schema is still present. Pinning
+    equality makes every readiness probe in the repository fail the moment the
+    next layer lands, which trains an operator to ignore a NOT READY verdict.
+    """
+    if applied is None:
+        return False
+    try:
+        return int(applied) >= int(minimum)
+    except ValueError:
+        # A non-numeric revision cannot be ordered; demand an exact match.
+        return applied == minimum
 
 async def check_tooling_readiness(
     *,
@@ -98,8 +117,8 @@ async def check_tooling_readiness(
             revision = (
                 await session.execute(text("SELECT version_num FROM alembic_version"))
             ).scalar_one_or_none()
-            checks["schema_revision"] = revision == EXPECTED_ALEMBIC_REVISION
-            details["schema_revision"] = f"found={revision!r} expected={EXPECTED_ALEMBIC_REVISION!r}"
+            checks["schema_revision"] = _revision_at_least(revision, MINIMUM_ALEMBIC_REVISION)
+            details["schema_revision"] = f"found={revision!r} minimum={MINIMUM_ALEMBIC_REVISION!r}"
             triggers = set(
                 (await session.execute(text("SELECT tgname FROM pg_trigger"))).scalars().all()
             )

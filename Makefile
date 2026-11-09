@@ -4,11 +4,12 @@
 # POSIX make. On Windows, run the underlying commands directly or use Git Bash.
 PY ?= python
 
-.PHONY: help venv install lint test test-db up down migrate keys bundle clean tooling-test tooling-test-db tooling-ready tooling-verify tooling-bundle tooling-verify-binaries
+.PHONY: help venv install lint test test-db up down migrate keys bundle clean tooling-test tooling-test-db tooling-ready tooling-verify tooling-bundle tooling-verify-binaries scan-test scan-test-db scan-ready scan-ready-json scan-verify scan-bundle
 
 help:
 	@echo "targets: install | test | test-db | up | down | migrate | keys | bundle | clean"
 	@echo "tool execution layer: tooling-test | tooling-test-db | tooling-ready | tooling-verify | tooling-verify-binaries | tooling-bundle"
+	@echo "scan orchestration:   scan-test | scan-test-db | scan-ready | scan-verify | scan-bundle"
 
 install:
 	$(PY) -m pip install -r requirements.txt -r requirements-dev.txt
@@ -72,3 +73,32 @@ tooling-bundle:
 # Loopback listeners only; no scan target is contacted. Needs the manifest.
 tooling-verify-binaries:
 	$(PY) -m scripts.verify_tool_binaries
+
+# ------------------------------------------------------------------------------
+# Scan orchestration layer
+# ------------------------------------------------------------------------------
+# Pure tests: identity, coverage, planning, state closure, attestation, report.
+# The load-bearing logic is pure, so these need no database.
+scan-test:
+	$(PY) -m pytest tests/orchestration/unit tests/orchestration/security
+
+# Full suite incl. the fenced lease and an end-to-end scan.
+# Needs GRYPHON_TEST_DATABASE_URL. WARNING: resets that database's schema.
+scan-test-db:
+	$(PY) -m pytest tests/orchestration
+
+# Readiness: would this deployment enforce what it claims? exit 0/1.
+scan-ready:
+	$(PY) -m scripts.orchestration_readiness
+
+scan-ready-json:
+	$(PY) -m scripts.orchestration_readiness --json
+
+# Self-verification: the real pipeline with a dry-run runner and pinned
+# resolver. No tool process is started and no target is contacted.
+scan-verify:
+	$(PY) -m scripts.verify_orchestration
+
+# Single-file markdown export of this layer only.
+scan-bundle:
+	$(PY) -m scripts.export_orchestration_bundle

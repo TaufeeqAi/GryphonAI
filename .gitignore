@@ -18,6 +18,8 @@ docs/
 artifacts/
 GRYPHON_Phase1_Codebase_Bundle.md
 GRYPHON_Tool_Execution_Layer_Bundle.md
+GRYPHON_Scan_Orchestration_Layer_Bundle.md
+report.json
 
 # Tooling caches
 .pytest_cache/

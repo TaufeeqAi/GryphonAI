@@ -18,7 +18,9 @@ from gryphon.logging_config import get_logger
 logger = get_logger(__name__)
 
 #: Head revision this build expects (bump with each forward migration).
-EXPECTED_ALEMBIC_REVISION = "0001"
+#: The migration that creates this layer's schema. A LATER head is fine:
+#: subsequent layers only add tables.
+MINIMUM_ALEMBIC_REVISION = "0001"
 
 #: Append-only protection triggers required on audit + grant tables (§22.3).
 REQUIRED_TRIGGERS = (
@@ -34,6 +36,23 @@ class ReadinessReport:
     details: dict[str, str] = field(default_factory=dict)
 
 
+
+def _revision_at_least(applied: str | None, minimum: str) -> bool:
+    """Is the applied migration head at or beyond the one this layer needs?
+
+    An exact-equality check answers the wrong question: a later layer's
+    migration raises the head, and this layer's schema is still present. Pinning
+    equality makes every readiness probe in the repository fail the moment the
+    next layer lands, which trains an operator to ignore a NOT READY verdict.
+    """
+    if applied is None:
+        return False
+    try:
+        return int(applied) >= int(minimum)
+    except ValueError:
+        # A non-numeric revision cannot be ordered; demand an exact match.
+        return applied == minimum
+
 async def check_readiness(services: Services) -> ReadinessReport:
     """Return a readiness report; ``ready`` is True only if every check passes."""
     checks: dict[str, bool] = {}
@@ -47,8 +66,8 @@ async def check_readiness(services: Services) -> ReadinessReport:
             revision = (
                 await session.execute(text("SELECT version_num FROM alembic_version"))
             ).scalar_one_or_none()
-            checks["schema_revision"] = revision == EXPECTED_ALEMBIC_REVISION
-            details["schema_revision"] = f"found={revision!r} expected={EXPECTED_ALEMBIC_REVISION!r}"
+            checks["schema_revision"] = _revision_at_least(revision, MINIMUM_ALEMBIC_REVISION)
+            details["schema_revision"] = f"found={revision!r} minimum={MINIMUM_ALEMBIC_REVISION!r}"
 
             trigger_names = set(
                 (await session.execute(text("SELECT tgname FROM pg_trigger"))).scalars().all()

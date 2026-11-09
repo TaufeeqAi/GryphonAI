@@ -13,7 +13,7 @@ safe correlation fields enumerated in §24.1.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, TextIO
 
 import structlog
 
@@ -54,8 +54,18 @@ def _redact_processor(
     return event_dict
 
 
-def configure_logging(*, level: int = logging.INFO, json_output: bool = True) -> None:
-    """Configure process-wide structured logging. Idempotent."""
+def configure_logging(
+    *,
+    level: int = logging.INFO,
+    json_output: bool = True,
+    stream: TextIO | None = None,
+) -> None:
+    """Configure process-wide structured logging. Idempotent.
+
+    ``stream`` defaults to ``stdout``; an operator CLI that prints a machine-
+    readable value (an id, a JSON body) passes ``sys.stderr`` so that diagnostic
+    output cannot be mistaken for the command's result by a caller capturing it.
+    """
     processors: list[Any] = [
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
@@ -73,7 +83,7 @@ def configure_logging(*, level: int = logging.INFO, json_output: bool = True) ->
     structlog.configure(
         processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(level),
-        logger_factory=structlog.PrintLoggerFactory(),
+        logger_factory=structlog.PrintLoggerFactory(file=stream),
         cache_logger_on_first_use=True,
     )
 

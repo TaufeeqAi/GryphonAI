@@ -32,9 +32,21 @@ remote service.
 6. **A real compiled LangGraph gate** proving DENY→END (sentinel never runs) and
    ALLOW→sentinel-once.
 
-What deliberately does **not** do: run scanners, build the full
-RECON→REPORT graph, implement revocation / presenter-auth / multi-tenancy, or
-treat Redis as authorization truth. Those are later (contract §34).
+7. **Capability-gated tool execution** — seven ProjectDiscovery wrappers behind
+   one enforcement gateway: grant-rooted credentials, OS-enforced per-execution
+   egress containment, a durable intent record before any target traffic, and
+   `execution_id` idempotency. See
+   [docs/TOOL_EXECUTION_LAYER.md](docs/TOOL_EXECUTION_LAYER.md).
+8. **Scan orchestration** — composes those enforced calls into one authorized
+   scan: a gate re-traversed on every entry, a durable work ledger as the only
+   source of truth, a fenced lease so a crash cannot wedge a scan, stored
+   execution identities so replay never re-scans, and a **coverage** fold so
+   "completed" means the planned work was accounted for rather than "the graph
+   finished". See [docs/SCAN_ORCHESTRATION.md](docs/SCAN_ORCHESTRATION.md).
+
+What it deliberately does **not** do: enrich or verify findings, schedule
+re-scans, expose a network API, or support multi-tenancy. Those are later, and
+the seams for them are data-model seams rather than placeholder code.
 
 ---
 
@@ -56,22 +68,44 @@ python -m scripts.generate_keys        # copy output into .env
 alembic upgrade head
 
 # 5. Issue a grant (local operator; you assert out-of-band written authority)
-python -m scripts.issue_grant \
+TOKEN=$(python -m scripts.issue_grant \
   --organization "Acme" --granted-by you@acme.example --granted-to team@acme.example \
   --domain staging.acme.example --exclude-path /admin \
-  --days 30 --max-depth standard --written-auth-ref SOW-2026-0042
+  --days 30 --max-depth standard --written-auth-ref SOW-2026-0042)
+
+# 6. Admit ONE scan within that grant's scope; prints a scan_run_id
+SCAN=$(python -m scripts.admit_scan --target staging.acme.example --token "$TOKEN")
+
+# 7. Run it (start is also resume)
+python -m scripts.run_scan start "$SCAN"
+python -m scripts.run_scan report "$SCAN" --out report.json
 ```
+
+Each script prints its one machine-readable value on stdout and its
+diagnostics on stderr, so the captures above hold the token and the id and
+nothing else.
 
 ## Tests
 
 ```bash
-# Pure suite — no database needed (87 tests)
-pytest tests/unit tests/contract tests/security tests/property tests/graph
+# Pure suites — no database needed
+make test            # authorization core
+make tooling-test    # tool execution layer
+make scan-test       # scan orchestration
 
 # Full suite incl. PostgreSQL integration (migration, atomic commit, privileges)
 export GRYPHON_TEST_DATABASE_URL=postgresql+asyncpg://gryphon_owner:owner_pw@localhost:5432/gryphon
-pytest
+pytest               # 348 passed, 14 skipped (skips are Linux-only) on 2026-11-09
 ```
+
+Readiness and self-verification probes, per layer:
+
+```bash
+make tooling-ready && make tooling-verify   # tool execution
+make scan-ready    && make scan-verify      # scan orchestration
+```
+
+> Run one suite at a time against a given database: each resets the schema.
 
 ## Dependencies
 

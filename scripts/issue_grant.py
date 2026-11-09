@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import secrets
+import sys
 from datetime import timedelta
 
 from gryphon.auth.claims import IssuanceRequest
@@ -30,6 +31,7 @@ from gryphon.auth.scope import ScopeEntry
 from gryphon.bootstrap import build_services
 from gryphon.clock import SystemClock
 from gryphon.constants import ScanDepth, TargetType
+from gryphon.logging_config import configure_logging
 
 
 def _build_scope(args: argparse.Namespace) -> list[ScopeEntry]:
@@ -70,13 +72,21 @@ async def _run(args: argparse.Namespace) -> int:
     try:
         issued = await services.issuer.issue_grant(request, idempotency_key=secrets.token_hex(16))
         print(issued.token)
-        print(f"# grant_id={issued.grant_id} expires_at={issued.expires_at.isoformat()}", flush=True)
+        # stdout carries the token and nothing else, so a caller can capture it.
+        print(
+            f"# grant_id={issued.grant_id} expires_at={issued.expires_at.isoformat()}",
+            file=sys.stderr,
+            flush=True,
+        )
         return 0
     finally:
         await services.dispose()
 
 
 def main() -> None:
+    # Diagnostics go to stderr so that stdout carries only this command's
+    # result, and the redaction processor is active for this process.
+    configure_logging(json_output=False, stream=sys.stderr)
     parser = argparse.ArgumentParser(description="Issue a GRYPHON authorization grant (local operator).")
     parser.add_argument("--organization", required=True)
     parser.add_argument("--granted-by", required=True)

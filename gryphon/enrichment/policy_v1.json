@@ -1,0 +1,23 @@
+{
+  "policy_name": "gryphon-enrichment-priority",
+  "label": "v1",
+  "scale": ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+  "floor": "observed_severity",
+  "ceiling": "CRITICAL",
+  "rules": {
+    "KEV_LISTED": {
+      "source": "KEV",
+      "set_priority": "CRITICAL",
+      "reason": "{cve} is actively exploited (CISA KEV {catalog_version}, due {due_date})"
+    },
+    "EPSS_HIGH": {
+      "source": "EPSS",
+      "threshold_exclusive": 0.70,
+      "set_min_priority": "HIGH",
+      "calibrated_models": ["v2026.06.15"],
+      "reason": "{cve} EPSS {pct}% (model {model_version}, {score_date})",
+      "uncalibrated_reason": "EPSS model {model_version} is not calibrated for this policy; EPSS not used for elevation"
+    }
+  },
+  "context_only_sources": ["CVSS_TEMPLATE", "ATTACK_CTID"]
+}

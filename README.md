@@ -1,6 +1,6 @@
 # GRYPHON — The guardian that never sleeps
 
-> *The guardian that never sleeps.* Phase 1 is the **authorization root of trust**
+> *The guardian that never sleeps.* is the **authorization root of trust**
 > and core database foundation for GRYPHON's continuous autonomous pentesting platform. 
 
 ---
@@ -43,9 +43,19 @@ remote service.
    execution identities so replay never re-scans, and a **coverage** fold so
    "completed" means the planned work was accounted for rather than "the graph
    finished". See [docs/SCAN_ORCHESTRATION.md](docs/SCAN_ORCHESTRATION.md).
+9. **Finding intelligence enrichment** — turns a finished scan's *verified*
+   evidence into an explainable priority using public intelligence acquired
+   **whole** (CISA KEV catalog, FIRST EPSS daily file) and pinned, offline
+   MITRE ATT&CK data. The base report is re-digested and its signature checked
+   before use; acquisition runs in a key-less, egress-contained subprocess and
+   no outbound request depends on what was scanned; a failed download only
+   makes knowledge older; every assertion is attributed and every priority is
+   a pure, versioned, monotone policy decision with named reasons. The
+   deliverable is a separate, signed enrichment report. See
+   [docs/ENRICHMENT.md](docs/ENRICHMENT.md).
 
-What it deliberately does **not** do: enrich or verify findings, schedule
-re-scans, expose a network API, or support multi-tenancy. Those are later, and
+What it deliberately does **not** do: verify findings, schedule re-scans,
+expose a network API, or support multi-tenancy. Those are later, and
 the seams for them are data-model seams rather than placeholder code.
 
 ---
@@ -79,6 +89,12 @@ SCAN=$(python -m scripts.admit_scan --target staging.acme.example --token "$TOKE
 # 7. Run it (start is also resume)
 python -m scripts.run_scan start "$SCAN"
 python -m scripts.run_scan report "$SCAN" --out report.json
+
+# 8. Enrich the finished scan (one-time: provision ATT&CK reference data)
+python -m scripts.provision_reference_data --download
+python -m scripts.enrich refresh                     # acquire KEV + EPSS whole
+python -m scripts.enrich start "$SCAN"               # verified, pinned, attested
+python -m scripts.enrich report "$SCAN" --out enrichment.json
 ```
 
 Each script prints its one machine-readable value on stdout and its
@@ -92,10 +108,11 @@ nothing else.
 make test            # authorization core
 make tooling-test    # tool execution layer
 make scan-test       # scan orchestration
+make enrich-test     # enrichment
 
 # Full suite incl. PostgreSQL integration (migration, atomic commit, privileges)
 export GRYPHON_TEST_DATABASE_URL=postgresql+asyncpg://gryphon_owner:owner_pw@localhost:5432/gryphon
-pytest               # 348 passed, 14 skipped (skips are Linux-only) on 2026-11-09
+pytest               # 555 passed, 14 skipped (skips are Linux-only) on 2026-11-13
 ```
 
 Readiness and self-verification probes, per layer:
@@ -103,17 +120,11 @@ Readiness and self-verification probes, per layer:
 ```bash
 make tooling-ready && make tooling-verify   # tool execution
 make scan-ready    && make scan-verify      # scan orchestration
+make enrich-ready  && make enrich-verify    # enrichment
 ```
 
 > Run one suite at a time against a given database: each resets the schema.
 
-## Dependencies
 
-Exact pins, confirmed live from PyPI on **2026-11-08** (see `requirements.txt`).
-Target runtime **CPython 3.12+**. Key libraries: `cryptography 50.0.2`,
-`PyJWT 2.15.1`, `pydantic 2.14.3`, `pydantic-settings 2.16.2`,
-`SQLAlchemy 2.1.8`, `alembic 1.20.1`, `asyncpg 0.32.0`, `rfc8785 0.1.4`
-(RFC 8785 JCS), `idna 3.20` (IDNA 2008/UTS-46), `structlog 26.1.0`,
-`langgraph 1.2.20`.
 
 

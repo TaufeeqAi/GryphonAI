@@ -19,6 +19,7 @@ artifacts/
 GRYPHON_Phase1_Codebase_Bundle.md
 GRYPHON_Tool_Execution_Layer_Bundle.md
 GRYPHON_Scan_Orchestration_Layer_Bundle.md
+GRYPHON_Enrichment_Layer_Bundle.md
 report.json
 
 # Tooling caches
@@ -34,3 +35,7 @@ htmlcov/
 Thumbs.db
 .idea/
 .vscode/
+
+# Enrichment layer runtime data: accepted snapshot artifacts and provisioned
+# reference data (content-addressed; regenerated, never committed).
+var/

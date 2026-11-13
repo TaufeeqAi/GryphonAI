@@ -105,6 +105,9 @@ ignore = ["S104"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106"]
+# DDL and grant statements composed only of code constants (table, role and
+# column names); nothing reaches them from input.
+"gryphon/enrichment/schema.py" = ["S608"]
 
 # ------------------------------------------------------------------------------
 # mypy (optional strictness for CI)

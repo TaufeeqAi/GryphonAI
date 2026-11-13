@@ -50,6 +50,10 @@ class RawFinding(Base):
         # duplicate evidence, which is what makes a retried or re-walked step
         # safe to repeat.
         UniqueConstraint("execution_id", "finding_key", name="uq_raw_finding_identity"),
+        # Trivially true (finding_id is the key). It exists so derived records in
+        # other layers can carry a composite FK that binds each one to its own
+        # scan's evidence — a derived row cannot attach a finding to another scan.
+        UniqueConstraint("scan_run_id", "finding_id", name="uq_raw_finding_scan_finding"),
         Index("ix_raw_finding_scan", "scan_run_id", "stage", "step"),
     )
 

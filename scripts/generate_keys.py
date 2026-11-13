@@ -4,6 +4,10 @@ Run ONCE per deployment and store the private keys securely (§19.4). The grant
 and audit keys are generated independently so they are distinct (SEC-014). The
 public keys are printed as ``kid -> hex`` trusted-key maps for the verifier.
 
+Four purposes, four independent keys: grant, audit, capability and enrichment.
+The enrichment layer refuses to start if its key shares a kid or a public key
+with any of the other three.
+
     python -m scripts.generate_keys
 
 Copy the emitted lines into your ``.env`` (never commit real keys).
@@ -36,10 +40,12 @@ def main() -> None:
     grant_kid = f"grant-key-{stamp}"
     audit_kid = f"audit-key-{stamp}"
     capability_kid = f"capability-key-{stamp}"
+    enrichment_kid = f"enrichment-key-{stamp}"
 
     grant_priv, grant_pub = _new_keypair()
     audit_priv, audit_pub = _new_keypair()
     capability_priv, capability_pub = _new_keypair()
+    enrichment_priv, enrichment_pub = _new_keypair()
 
     print("# ---- GRYPHON key material (store securely; never commit) ----")
     print(f'GRYPHON_GRANT_KID={grant_kid}')
@@ -54,6 +60,14 @@ def main() -> None:
     print(f'GRYPHON_CAPABILITY_KID={capability_kid}')
     print(f"GRYPHON_CAPABILITY_SIGNING_KEY_HEX={capability_priv}")
     print(f'GRYPHON_CAPABILITY_TRUSTED_PUBLIC_KEYS={{"{capability_kid}": "{capability_pub}"}}')
+    print()
+    # Enrichment attestation key — dedicated; signs enrichment reports and
+    # snapshot acceptances only. MUST be distinct from all keys above.
+    print(f"GRYPHON_ENRICHMENT_KID={enrichment_kid}")
+    print(f"GRYPHON_ENRICHMENT_SIGNING_KEY_HEX={enrichment_priv}")
+    print(
+        f'GRYPHON_ENRICHMENT_TRUSTED_PUBLIC_KEYS={{"{enrichment_kid}": "{enrichment_pub}"}}'
+    )
 
 
 if __name__ == "__main__":

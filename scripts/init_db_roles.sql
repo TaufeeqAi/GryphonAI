@@ -29,3 +29,21 @@ GRANT CONNECT ON DATABASE gryphon TO gryphon_runtime;
 REVOKE CREATE ON SCHEMA public FROM gryphon_runtime;
 REVOKE ALL ON DATABASE gryphon FROM PUBLIC;
 GRANT CONNECT ON DATABASE gryphon TO gryphon_runtime;
+
+-- ----------------------------------------------------------------------------
+-- Enrichment layer: a DEDICATED login role. It can read the evidence and the
+-- attested report, and write only enrichment tables (privileges are granted by
+-- the enrichment migration, which also creates this role NOLOGIN on databases
+-- initialized before it existed). Development password only — in production,
+-- provision it from your secret manager.
+-- ----------------------------------------------------------------------------
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'gryphon_enrichment') THEN
+        CREATE ROLE gryphon_enrichment LOGIN PASSWORD 'enrichment_pw';
+    END IF;
+END
+$$;
+
+GRANT CONNECT ON DATABASE gryphon TO gryphon_enrichment;
+REVOKE CREATE ON SCHEMA public FROM gryphon_enrichment;

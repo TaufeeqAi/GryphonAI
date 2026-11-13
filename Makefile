@@ -4,12 +4,13 @@
 # POSIX make. On Windows, run the underlying commands directly or use Git Bash.
 PY ?= python
 
-.PHONY: help venv install lint test test-db up down migrate keys bundle clean tooling-test tooling-test-db tooling-ready tooling-verify tooling-bundle tooling-verify-binaries scan-test scan-test-db scan-ready scan-ready-json scan-verify scan-bundle
+.PHONY: help venv install lint test test-db up down migrate keys bundle clean tooling-test tooling-test-db tooling-ready tooling-verify tooling-bundle tooling-verify-binaries scan-test scan-test-db scan-ready scan-ready-json scan-verify scan-bundle enrich-test enrich-test-db enrich-ready enrich-ready-json enrich-verify enrich-reference enrich-bundle
 
 help:
 	@echo "targets: install | test | test-db | up | down | migrate | keys | bundle | clean"
 	@echo "tool execution layer: tooling-test | tooling-test-db | tooling-ready | tooling-verify | tooling-verify-binaries | tooling-bundle"
 	@echo "scan orchestration:   scan-test | scan-test-db | scan-ready | scan-verify | scan-bundle"
+	@echo "enrichment:           enrich-test | enrich-test-db | enrich-ready | enrich-verify | enrich-reference | enrich-bundle"
 
 install:
 	$(PY) -m pip install -r requirements.txt -r requirements-dev.txt
@@ -102,3 +103,36 @@ scan-verify:
 # Single-file markdown export of this layer only.
 scan-bundle:
 	$(PY) -m scripts.export_orchestration_bundle
+
+# ------------------------------------------------------------------------------
+# Enrichment layer
+# ------------------------------------------------------------------------------
+# Pure tests: acceptance, extraction, policy, derivation, verification, isolation.
+enrich-test:
+	$(PY) -m pytest tests/enrichment/unit tests/enrichment/security
+
+# Incl. migration, privileges, fenced passes and the read view against PostgreSQL.
+# Needs GRYPHON_TEST_DATABASE_URL. WARNING: resets that database's schema.
+enrich-test-db:
+	$(PY) -m pytest tests/enrichment
+
+# Readiness by facts (tables, enabled triggers, function bodies, role privileges,
+# reference data, signing key, egress posture). exit 0/1.
+enrich-ready:
+	$(PY) -m scripts.enrichment_readiness
+
+enrich-ready-json:
+	$(PY) -m scripts.enrichment_readiness --json
+
+# Offline self-verification: import isolation, acceptance, policy, derivation,
+# attestation. No network, no database writes.
+enrich-verify:
+	$(PY) -m scripts.verify_enrichment
+
+# Download (pinned URL, verified digest and size) and index the ATT&CK reference data.
+enrich-reference:
+	$(PY) -m scripts.provision_reference_data --download
+
+# Single-file markdown export of this layer only.
+enrich-bundle:
+	$(PY) -m scripts.export_enrichment_bundle

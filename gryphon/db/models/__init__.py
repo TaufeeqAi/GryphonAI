@@ -10,6 +10,18 @@ from __future__ import annotations
 from gryphon.db.models.audit_log import AuthorizationAuditLog
 from gryphon.db.models.authorization import AuthorizationGrant
 from gryphon.db.models.capability_consumption import CapabilityConsumption
+from gryphon.db.models.enrichment import (
+    AcquisitionAttempt,
+    EgressLedger,
+    EnrichmentAudit,
+    EnrichmentPass,
+    EnrichmentReport,
+    EnrichmentSlot,
+    FindingEnrichment,
+    FindingPriority,
+    IntelSnapshot,
+    IntelSnapshotRevocation,
+)
 from gryphon.db.models.finding import Finding
 from gryphon.db.models.raw_finding import RawFinding
 from gryphon.db.models.scan_lifecycle import ScanLifecycle
@@ -36,4 +48,15 @@ __all__ = [
     "RawFinding",
     "ScanReport",
     "OrchestrationAudit",
+    # Enrichment layer (sibling tables; upstream schemas untouched).
+    "IntelSnapshot",
+    "IntelSnapshotRevocation",
+    "AcquisitionAttempt",
+    "EgressLedger",
+    "EnrichmentSlot",
+    "EnrichmentPass",
+    "FindingEnrichment",
+    "FindingPriority",
+    "EnrichmentReport",
+    "EnrichmentAudit",
 ]

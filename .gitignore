@@ -1,5 +1,6 @@
 # Secrets / local config — NEVER commit
 .env
+.env.*
 *.pem
 *.key
 secrets/
@@ -20,6 +21,7 @@ GRYPHON_Phase1_Codebase_Bundle.md
 GRYPHON_Tool_Execution_Layer_Bundle.md
 GRYPHON_Scan_Orchestration_Layer_Bundle.md
 GRYPHON_Enrichment_Layer_Bundle.md
+GRYPHON_Verification_Layer_Bundle.md
 report.json
 
 # Tooling caches
@@ -39,3 +41,4 @@ Thumbs.db
 # Enrichment layer runtime data: accepted snapshot artifacts and provisioned
 # reference data (content-addressed; regenerated, never committed).
 var/
+.tmp-tools/

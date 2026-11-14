@@ -4,9 +4,10 @@ Run ONCE per deployment and store the private keys securely (§19.4). The grant
 and audit keys are generated independently so they are distinct (SEC-014). The
 public keys are printed as ``kid -> hex`` trusted-key maps for the verifier.
 
-Four purposes, four independent keys: grant, audit, capability and enrichment.
-The enrichment layer refuses to start if its key shares a kid or a public key
-with any of the other three.
+Five purposes, five independent keys: grant, audit, capability, enrichment and
+verification. The enrichment and verification layers each refuse to start if
+their key shares a kid or a public key with any of the others — a layer that
+signs with the key it also verifies against can attest to its own conclusions.
 
     python -m scripts.generate_keys
 
@@ -41,11 +42,13 @@ def main() -> None:
     audit_kid = f"audit-key-{stamp}"
     capability_kid = f"capability-key-{stamp}"
     enrichment_kid = f"enrichment-key-{stamp}"
+    verification_kid = f"verification-key-{stamp}"
 
     grant_priv, grant_pub = _new_keypair()
     audit_priv, audit_pub = _new_keypair()
     capability_priv, capability_pub = _new_keypair()
     enrichment_priv, enrichment_pub = _new_keypair()
+    verification_priv, verification_pub = _new_keypair()
 
     print("# ---- GRYPHON key material (store securely; never commit) ----")
     print(f'GRYPHON_GRANT_KID={grant_kid}')
@@ -68,6 +71,21 @@ def main() -> None:
     print(
         f'GRYPHON_ENRICHMENT_TRUSTED_PUBLIC_KEYS={{"{enrichment_kid}": "{enrichment_pub}"}}'
     )
+    print()
+    # Verification attestation key — dedicated; signs verification verdicts only.
+    # MUST be distinct from all keys above: the layer refuses to start if its kid
+    # appears in any trust store it checks against, because a signer that is also
+    # a trusted verifier of its own output can attest to whatever it concludes.
+    print(f"GRYPHON_VERIFICATION_KID={verification_kid}")
+    print(f"GRYPHON_VERIFICATION_SIGNING_KEY_HEX={verification_priv}")
+    print(
+        f'GRYPHON_VERIFICATION_TRUSTED_PUBLIC_KEYS={{"{verification_kid}": "{verification_pub}"}}'
+    )
+    print()
+    # The verification layer must also be given the ENRICHMENT public key, so it
+    # can check enrichment context it consumes without being able to mint it:
+    enrichment_map = f'{{"{enrichment_kid}": "{enrichment_pub}"}}'
+    print(f"GRYPHON_VERIFICATION_ENRICHMENT_TRUSTED_PUBLIC_KEYS={enrichment_map}")
 
 
 if __name__ == "__main__":

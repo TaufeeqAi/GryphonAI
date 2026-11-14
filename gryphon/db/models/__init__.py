@@ -30,6 +30,15 @@ from gryphon.db.models.scan_report import OrchestrationAudit, ScanReport
 from gryphon.db.models.scan_run import ScanRun
 from gryphon.db.models.tool_execution import ToolExecution
 from gryphon.db.models.tool_invocation_audit import ToolInvocationAudit
+from gryphon.db.models.verification import (
+    FindingVerification,
+    VerificationAudit,
+    VerificationObservation,
+    VerificationPass,
+    VerificationPassPin,
+    VerificationReport,
+    VerificationRetraction,
+)
 
 __all__ = [
     "AuthorizationGrant",
@@ -59,4 +68,12 @@ __all__ = [
     "FindingPriority",
     "EnrichmentReport",
     "EnrichmentAudit",
+    # Verification layer (sibling tables; upstream schemas untouched).
+    "VerificationPass",
+    "VerificationPassPin",
+    "VerificationObservation",
+    "FindingVerification",
+    "VerificationRetraction",
+    "VerificationReport",
+    "VerificationAudit",
 ]

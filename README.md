@@ -53,8 +53,21 @@ remote service.
    a pure, versioned, monotone policy decision with named reasons. The
    deliverable is a separate, signed enrichment report. See
    [docs/ENRICHMENT.md](docs/ENRICHMENT.md).
+10. **Finding verification** — re-measures a reported finding against the live
+    target and returns a verdict with a reason: CONFIRMED, REFUTED,
+    NOT_REPRODUCED, INCONCLUSIVE or UNSUPPORTED, where every verdict that is
+    not CONFIRMED carries one of a closed set of justifications, so "we could
+    not check" is never reported as "it is not there". Measurement happens in
+    an unprivileged, keyless, one-shot observer that holds no database
+    identity and no signing key; only typed facts cross back, so a target
+    cannot talk its way into the judgment. The judge is a pure decision table
+    over those facts and a signed verifier registry — it never sees bytes the
+    target chose. Absence is only ever concluded from a *complete*
+    observation, and a truncated one is INCONCLUSIVE by construction. The
+    deliverable is a separate, signed verification report. See
+    [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
-What it deliberately does **not** do: verify findings, schedule re-scans,
+What it deliberately does **not** do: schedule re-scans, chain exploits,
 expose a network API, or support multi-tenancy. Those are later, and
 the seams for them are data-model seams rather than placeholder code.
 
@@ -70,7 +83,7 @@ docker compose up -d
 python -m venv .venv && . .venv/Scripts/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt -r requirements-dev.txt && pip install -e .
 
-# 3. Generate a DISTINCT grant + audit key set and paste into .env
+# 3. Generate the five DISTINCT signing keys and paste into .env
 cp .env.example .env
 python -m scripts.generate_keys        # copy output into .env
 
@@ -95,6 +108,10 @@ python -m scripts.provision_reference_data --download
 python -m scripts.enrich refresh                     # acquire KEV + EPSS whole
 python -m scripts.enrich start "$SCAN"               # verified, pinned, attested
 python -m scripts.enrich report "$SCAN" --out enrichment.json
+
+# 9. Verify the findings against the live target (the same request key resumes)
+python -m scripts.verify_findings start "$SCAN" --request-key run-1
+python -m scripts.verify_findings report "$SCAN" --out verification.json
 ```
 
 Each script prints its one machine-readable value on stdout and its
@@ -109,10 +126,11 @@ make test            # authorization core
 make tooling-test    # tool execution layer
 make scan-test       # scan orchestration
 make enrich-test     # enrichment
+make verify-test     # verification
 
 # Full suite incl. PostgreSQL integration (migration, atomic commit, privileges)
 export GRYPHON_TEST_DATABASE_URL=postgresql+asyncpg://gryphon_owner:owner_pw@localhost:5432/gryphon
-pytest               # 555 passed, 14 skipped (skips are Linux-only) on 2026-11-13
+pytest               # 1018 passed, 14 skipped (skips are Linux-only) on 2026-11-14
 ```
 
 Readiness and self-verification probes, per layer:
@@ -121,6 +139,7 @@ Readiness and self-verification probes, per layer:
 make tooling-ready && make tooling-verify   # tool execution
 make scan-ready    && make scan-verify      # scan orchestration
 make enrich-ready  && make enrich-verify    # enrichment
+make verify-ready  && make verify-accept    # verification
 ```
 
 > Run one suite at a time against a given database: each resets the schema.

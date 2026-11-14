@@ -1,0 +1,128 @@
+{
+  "registry_format_version": "1",
+  "approval": {
+    "reviewer": "UNREVIEWED — replace before production",
+    "approved_at": "",
+    "signer_kid": null,
+    "signature_b64": null
+  },
+  "body": {
+    "registry_version": "1.0.0",
+    "notes": [
+      "Verifier set v1. Each entry is a reviewed claim about how a finding class may be re-observed.",
+      "The approval block above is deliberately unsigned in the packaged copy: a deployment signs its own registry with the policy key, and production readiness refuses an unsigned one. A digest proves integrity, not authority.",
+      "Signal tokens are copied here rather than read from a detection template, so an unpinned template update cannot silently change what a pass refutes.",
+      "Providers are listed once and referenced by the dangling-record clause, so one review covers one list. Community fingerprint sets change and carry no correctness guarantee, so an entry is added only by review."
+    ],
+    "providers": [
+      "s3.amazonaws.com",
+      "cloudfront.net",
+      "github.io",
+      "herokuapp.com",
+      "herokudns.com",
+      "azurewebsites.net",
+      "cloudapp.net",
+      "trafficmanager.net",
+      "fastly.net",
+      "pantheonsite.io",
+      "wpengine.com",
+      "ghost.io",
+      "surge.sh",
+      "bitbucket.io",
+      "netlify.app"
+    ],
+    "class_map": {
+      "exposed_config": "exposed-config@1.0.0",
+      "subdomain_takeover": "dangling-dns@1.0.0"
+    },
+    "template_map": {
+      "laravel-env": "exposed-config@1.0.0",
+      "symfony-env": "exposed-config@1.0.0",
+      "dotenv-file": "exposed-config@1.0.0",
+      "aws-bucket-takeover": "dangling-dns@1.0.0",
+      "github-takeover": "dangling-dns@1.0.0",
+      "heroku-takeover": "dangling-dns@1.0.0",
+      "azure-takeover": "dangling-dns@1.0.0"
+    },
+    "verifiers": [
+      {
+        "verifier_id": "exposed-config@1.0.0",
+        "lifecycle": "active",
+        "description": "An exposed configuration file is confirmed by its own grammar, not by the detection template's regex. Independence is the point: re-running the original matcher would reproduce the original false positive.",
+        "kind": "http.response.summary",
+        "method": "GET",
+        "claim_scope": "resource_specific",
+        "can_confirm": true,
+        "can_refute": true,
+        "safe_read_class": "reviewed_safe_read",
+        "repeat_safe": true,
+        "controls": {
+          "strategy": "sibling_paths",
+          "count": 2
+        },
+        "predicate": [
+          { "clause": "status_in", "codes": [200] },
+          { "clause": "content_type_not_in", "types": ["text/html", "application/xhtml"] },
+          { "clause": "dotenv_shape", "min_non_empty_lines": 3, "min_assignment_ratio": 0.5 }
+        ],
+        "projection": {
+          "include_dotenv_keys": true,
+          "include_secret_counts": true,
+          "include_header_names": true,
+          "max_keys": 200
+        }
+      },
+      {
+        "verifier_id": "signal-specificity@1.0.0",
+        "lifecycle": "active",
+        "description": "Refute-only. A detection that rests on a header or body token is spurious when the same token appears on paths that do not exist. This verifier never confirms: the absence of ubiquity is not evidence that the finding is real.",
+        "kind": "http.response.summary",
+        "method": "GET",
+        "claim_scope": "resource_specific",
+        "can_confirm": false,
+        "can_refute": true,
+        "safe_read_class": "reviewed_safe_read",
+        "repeat_safe": true,
+        "controls": {
+          "strategy": "sibling_paths",
+          "count": 2
+        },
+        "signal_tokens": ["X-Powered-By", "Server", "__VIEWSTATE", "phpinfo()"],
+        "refutation": [
+          { "clause": "token_present", "token": "X-Powered-By" }
+        ],
+        "projection": {
+          "include_tokens": true,
+          "include_header_names": true,
+          "include_secret_counts": false
+        }
+      },
+      {
+        "verifier_id": "dangling-dns@1.0.0",
+        "lifecycle": "active",
+        "description": "A dangling record is confirmed from the resolver, never from the provider's HTTP body: that body comes from third-party infrastructure which is not attested to the client's estate. An authoritative NXDOMAIN is its own control — a resolver cannot catch-all an authoritative negative answer — so this verifier is self-controlling rather than control-exempt.",
+        "kind": "dns.answer",
+        "method": "DNS",
+        "record_types": ["CNAME", "A"],
+        "claim_scope": "resource_specific",
+        "can_confirm": true,
+        "can_refute": false,
+        "safe_read_class": "reviewed_safe_read",
+        "repeat_safe": true,
+        "controls": {
+          "strategy": "authoritative_nxdomain",
+          "count": 0
+        },
+        "predicate": [
+          { "clause": "rcode_is", "rcode": "NXDOMAIN" },
+          { "clause": "cname_terminates_in_provider" }
+        ],
+        "projection": {
+          "include_dns_chain": true,
+          "include_secret_counts": false,
+          "include_header_names": false
+        }
+      }
+    ]
+  }
+}

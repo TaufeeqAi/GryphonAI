@@ -47,3 +47,32 @@ $$;
 
 GRANT CONNECT ON DATABASE gryphon TO gryphon_enrichment;
 REVOKE CREATE ON SCHEMA public FROM gryphon_enrichment;
+
+-- ----------------------------------------------------------------------------
+-- Verification layer: a DEDICATED login role, and the separation matters more
+-- here than anywhere else. The verification layer judges evidence the runtime
+-- role wrote; were it to connect AS that role it would hold write access to the
+-- very rows it is deciding about, and a verdict is only worth something if the
+-- process reaching it could not have authored its inputs. Its privileges are
+-- granted by the verification migration (read on evidence and attested reports,
+-- write only on verification tables), which also creates this role NOLOGIN on
+-- databases initialized before it existed. Development password only — in
+-- production, provision it from your secret manager.
+-- ----------------------------------------------------------------------------
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'gryphon_verification') THEN
+        CREATE ROLE gryphon_verification LOGIN PASSWORD 'verification_pw';
+    END IF;
+END
+$$;
+
+GRANT CONNECT ON DATABASE gryphon TO gryphon_verification;
+REVOKE CREATE ON SCHEMA public FROM gryphon_verification;
+
+-- Pin the search path. PostgreSQL's default is "$user", public — and a
+-- per-user schema is a place where a table or function can be shadowed without
+-- one line of this layer's SQL changing. A verifier reading a shadowed table
+-- would reach real conclusions about fake evidence, so readiness refuses a
+-- search_path naming anything but public and pg_catalog.
+ALTER ROLE gryphon_verification SET search_path = public, pg_catalog;

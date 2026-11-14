@@ -4,7 +4,7 @@
 # POSIX make. On Windows, run the underlying commands directly or use Git Bash.
 PY ?= python
 
-.PHONY: help venv install lint test test-db up down migrate keys bundle clean tooling-test tooling-test-db tooling-ready tooling-verify tooling-bundle tooling-verify-binaries scan-test scan-test-db scan-ready scan-ready-json scan-verify scan-bundle enrich-test enrich-test-db enrich-ready enrich-ready-json enrich-verify enrich-reference enrich-bundle
+.PHONY: help venv install lint test test-db up down migrate keys bundle clean tooling-test tooling-test-db tooling-ready tooling-verify tooling-bundle tooling-verify-binaries scan-test scan-test-db scan-ready scan-ready-json scan-verify scan-bundle enrich-test enrich-test-db enrich-ready enrich-ready-json enrich-verify enrich-reference enrich-bundle verify-test verify-test-db verify-ready verify-ready-json verify-accept verify-bundle
 
 help:
 	@echo "targets: install | test | test-db | up | down | migrate | keys | bundle | clean"
@@ -136,3 +136,32 @@ enrich-reference:
 # Single-file markdown export of this layer only.
 enrich-bundle:
 	$(PY) -m scripts.export_enrichment_bundle
+# ------------------------------------------------------------------------------
+# Verification layer
+# ------------------------------------------------------------------------------
+# Pure tests: the decision table, the sealed observer, the gateway protocol, the
+# pass kernel, and the gateway/observer cross-process schema contract.
+verify-test:
+	$(PY) -m pytest tests/verification/unit tests/verification/security tests/verification/contract
+
+# Incl. migration, privileges, fenced passes and write-once pins against PostgreSQL.
+# Needs GRYPHON_TEST_DATABASE_URL. WARNING: resets that database's schema.
+verify-test-db:
+	$(PY) -m pytest tests/verification
+
+# Readiness by facts (tables, enabled triggers, role privileges, registry digest,
+# signing key custody, gateway reachability, egress posture). exit 0/1.
+verify-ready:
+	$(PY) -m scripts.verification_readiness
+
+verify-ready-json:
+	$(PY) -m scripts.verification_readiness --json
+
+# The acceptance checkpoints: the decision table driven end to end against
+# recorded observations, plus the custody refusals. No network, no DB writes.
+verify-accept:
+	$(PY) -m pytest tests/verification/contract/test_checkpoints.py
+
+# Single-file markdown export of this layer only.
+verify-bundle:
+	$(PY) -m scripts.export_verification_bundle
